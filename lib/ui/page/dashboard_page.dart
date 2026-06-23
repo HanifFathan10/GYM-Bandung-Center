@@ -4,6 +4,8 @@ import '../data_form.dart';
 import 'login_page.dart';
 import '../../helpers/theme_config.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/gym_controller.dart';
+import '../../model/data_model.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,7 +15,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  String _username = "Member";
+  String _username = "Loading...";
   int _selectedIndex = 0;
 
   @override
@@ -23,10 +25,18 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _loadUser() async {
-    String username = await AuthController().getActiveUsername();
-    setState(() {
-      _username = username;
-    });
+    try {
+      String username = await AuthController().getActiveUsername();
+      if (mounted) {
+        setState(() {
+          _username = username.isNotEmpty ? username : "Member";
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _username = "Member");
+      }
+    }
   }
 
   void _logout() {
@@ -34,7 +44,10 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardDark,
-        title: Text('Logout', style: TextStyle(color: AppTheme.textWhite)),
+        title: const Text(
+          'Logout',
+          style: TextStyle(color: AppTheme.textWhite),
+        ),
         content: Text(
           'Apakah Anda yakin ingin keluar?',
           style: TextStyle(color: AppTheme.textSub),
@@ -47,7 +60,16 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           TextButton(
             onPressed: () async {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(color: Colors.redAccent),
+                ),
+              );
+
               await AuthController().logout();
+
               if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
@@ -71,6 +93,7 @@ class _DashboardPageState extends State<DashboardPage> {
       backgroundColor: AppTheme.bgDark,
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +101,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  const Text(
                     'Dashboard',
                     style: TextStyle(
                       color: AppTheme.textWhite,
@@ -89,17 +112,16 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   Row(
                     children: [
-                      _buildHeaderIconButton(Icons.tune, _logout),
+                      _buildHeaderIconButton(Icons.logout_rounded, _logout),
                       const SizedBox(width: 10),
-                      // Shortcut Tambah Data GYM
                       _buildHeaderIconButton(
-                        Icons.add,
+                        Icons.add_rounded,
                         () => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const DataForm(),
                           ),
-                        ).then((_) => setState(() {})),
+                        ),
                       ),
                     ],
                   ),
@@ -122,7 +144,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           MaterialPageRoute(
                             builder: (context) => const DataPage(),
                           ),
-                        ).then((_) => setState(() {}));
+                        );
                       },
                       child: Container(
                         height: 160,
@@ -135,36 +157,51 @@ class _DashboardPageState extends State<DashboardPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: CircularProgressIndicator(
-                                    value: 0.75,
-                                    strokeWidth: 4,
-                                    backgroundColor: Colors.grey.shade800,
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
+                            StreamBuilder<List<GymModel>>(
+                              stream: GymController().gymStream,
+                              builder: (context, snapshot) {
+                                String count = "0";
+                                bool isWaiting =
+                                    snapshot.connectionState ==
+                                    ConnectionState.waiting;
+
+                                if (snapshot.hasData) {
+                                  count = snapshot.data!.length.toString();
+                                }
+
+                                return Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    SizedBox(
+                                      width: 50,
+                                      height: 50,
+                                      child: CircularProgressIndicator(
+                                        value: isWaiting ? null : 1.0,
+                                        strokeWidth: 4,
+                                        backgroundColor: Colors.grey.shade800,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                              Colors.blueAccent,
+                                            ),
+                                      ),
+                                    ),
+                                    if (!isWaiting)
+                                      Text(
+                                        count,
+                                        style: const TextStyle(
+                                          color: AppTheme.textWhite,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                  ),
-                                ),
-                                Text(
-                                  DataPage.gymList.length.toString(),
-                                  style: TextStyle(
-                                    color: AppTheme.textWhite,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Kelola Data GYM',
                                   style: TextStyle(
                                     color: AppTheme.textWhite,
@@ -201,19 +238,19 @@ class _DashboardPageState extends State<DashboardPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Align(
+                          const Align(
                             alignment: Alignment.topRight,
                             child: Icon(
-                              Icons.local_fire_department,
-                              color: AppTheme.textSub,
-                              size: 20,
+                              Icons.local_fire_department_rounded,
+                              color: Colors.orangeAccent,
+                              size: 24,
                             ),
                           ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.baseline,
                             textBaseline: TextBaseline.alphabetic,
                             children: [
-                              Text(
+                              const Text(
                                 '2100',
                                 style: TextStyle(
                                   color: AppTheme.textWhite,
@@ -234,7 +271,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 'Target Harian',
                                 style: TextStyle(
                                   color: AppTheme.textWhite,
@@ -319,7 +356,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                   width: 2,
                                 ),
                               ),
-                              child: Text(
+                              child: const Text(
                                 '2',
                                 style: TextStyle(
                                   color: AppTheme.textWhite,
@@ -331,7 +368,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
+                                const Text(
                                   'Jadwal Latihan',
                                   style: TextStyle(
                                     color: AppTheme.textWhite,
@@ -351,7 +388,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                           ],
                         ),
-                        Icon(Icons.tune, color: AppTheme.textSub, size: 20),
+                        Icon(
+                          Icons.tune_rounded,
+                          color: AppTheme.textSub,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ],
@@ -372,7 +413,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Asupan Protein',
                           style: TextStyle(
                             color: AppTheme.textWhite,
@@ -394,7 +435,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text(
+                        const Text(
                           '120',
                           style: TextStyle(
                             color: AppTheme.textWhite,
@@ -419,7 +460,6 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
-
       bottomNavigationBar: Theme(
         data: Theme.of(context).copyWith(
           splashColor: Colors.transparent,
@@ -463,7 +503,7 @@ class _DashboardPageState extends State<DashboardPage> {
       borderRadius: BorderRadius.circular(50),
       child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppTheme.cardDark,
           shape: BoxShape.circle,
         ),

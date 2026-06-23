@@ -24,22 +24,32 @@ class _RegistrasiPageState extends State<RegistrasiPage> {
 
   Future<void> _prosesRegistrasi() async {
     if (_formKey.currentState!.validate()) {
-      bool success = await AuthController().register(
+      final result = await AuthController().register(
         _namaController.text,
         _emailController.text,
         _passwordController.text,
       );
 
       if (!mounted) return;
-      if (success) {
+
+      if (result['status'] == true) {
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => SuccessDialog(
             message: 'Akun berhasil dibuat. Silakan login.',
             onOkPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // Kembali ke halaman Login
             },
+          ),
+        );
+      } else {
+        // Menampilkan pesan error di layar jika status == false
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }

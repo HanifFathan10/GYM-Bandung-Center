@@ -1,64 +1,105 @@
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import '../model/data_model.dart';
+import 'dart:typed_data';
+
 class GymController {
-  // Singleton Pattern
   static final GymController _instance = GymController._internal();
   factory GymController() => _instance;
-  GymController._internal();
 
-  // Data tersentralisasi di Controller (Model data sementara)
-  final List<Map<String, dynamic>> _gymList = [
-    {
-      'nama': 'Baleendah Fitness Center',
-      'alamat': 'Jl. Siliwangi, Baleendah',
-      'harga': 150000,
-      'jam': '06.00 - 21.00',
-      'image':
-          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop',
-    },
-    // ... (Masukkan sisa data dummy kamu di sini)
-    {
-      'nama': 'Soreang Gym Center',
-      'alamat': 'Dekat Pemda Soreang',
-      'harga': 175000,
-      'jam': '08.00 - 20.00',
-      'image':
-          'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1470&auto=format&fit=crop',
-    },
-  ];
+  final CollectionReference _gymCollection = FirebaseFirestore.instance
+      .collection('gyms');
 
-  // Mengambil semua data
-  List<Map<String, dynamic>> getAllGyms() {
-    return _gymList;
+  final String cloudName = 'dyvlx0mzc';
+  final String uploadPreset = 'gym_preset';
+
+  late Stream<List<GymModel>> _gymsStream;
+
+  GymController._internal() {
+    _gymsStream = _gymCollection
+        .orderBy('updatedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            return GymModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+          }).toList();
+        });
   }
 
-  // Menambah data
-  void addGym(Map<String, dynamic> newData) {
-    _gymList.add(newData);
+  Stream<List<GymModel>> get gymStream => _gymsStream;
+
+  Stream<List<GymModel>> getGymsStream() {
+    return _gymCollection
+        .orderBy('updatedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            return GymModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+          }).toList();
+        });
   }
 
-  // Memperbarui data
-  void updateGym(int index, Map<String, dynamic> updatedData) {
-    _gymList[index] = updatedData;
+  Future<String?> uploadImageToCloudinary(
+    Uint8List imageBytes,
+    String fileName,
+  ) async {
+    try {
+      final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+      );
+
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(
+          http.MultipartFile.fromBytes('file', imageBytes, filename: fileName),
+        );
+
+      final response = await request.send();
+      final responseData = await response.stream.toBytes();
+      final responseString = String.fromCharCodes(responseData);
+
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(responseString);
+        return jsonMap['secure_url'];
+      } else {
+        throw Exception(
+          "Gagal upload Cloudinary. Status: ${response.statusCode} - $responseString",
+        );
+      }
+    } catch (e) {
+      throw Exception("Koneksi Upload Cloudinary gagal: $e");
+    }
   }
 
-  // Menghapus data
-  void deleteGym(int index) {
-    _gymList.removeAt(index);
+  Future<void> addGym(
+    GymModel gym,
+    Uint8List? imageBytes,
+    String? fileName,
+  ) async {
+    if (imageBytes != null && fileName != null) {
+      String? uploadedUrl = await uploadImageToCloudinary(imageBytes, fileName);
+      gym.imageUrl = uploadedUrl;
+    }
+    await _gymCollection.add(gym.toMap());
   }
 
-  // Logika Pencarian (Search)
-  List<Map<String, dynamic>> searchGym(String query) {
-    if (query.isEmpty) return List.from(_gymList);
-
-    return _gymList.where((gym) {
-      final String namaGym = gym['nama'].toString().toLowerCase();
-      final String alamat = gym['alamat'].toString().toLowerCase();
-      final String keyword = query.toLowerCase();
-      return namaGym.contains(keyword) || alamat.contains(keyword);
-    }).toList();
+  Future<void> updateGym(
+    GymModel gym,
+    Uint8List? newImageBytes,
+    String? fileName,
+  ) async {
+    if (newImageBytes != null && fileName != null) {
+      String? uploadedUrl = await uploadImageToCloudinary(
+        newImageBytes,
+        fileName,
+      );
+      gym.imageUrl = uploadedUrl;
+    }
+    await _gymCollection.doc(gym.id).update(gym.toMap());
   }
 
-  // Mendapatkan index asli (diperlukan untuk fungsi search)
-  int getOriginalIndex(Map<String, dynamic> gymItem) {
-    return _gymList.indexOf(gymItem);
+  Future<void> deleteGym(String id) async {
+    await _gymCollection.doc(id).delete();
   }
 }

@@ -1,378 +1,556 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../model/data_model.dart';
+import '../controllers/gym_controller.dart';
 import 'data_form.dart';
 import 'data_detail.dart';
+import '../helpers/theme_config.dart';
 
 class DataPage extends StatefulWidget {
   const DataPage({super.key});
-
-  static List<Map<String, dynamic>> gymList = [
-    {
-      'nama': 'Baleendah Fitness Center',
-      'alamat': 'Jl. Siliwangi, Baleendah',
-      'harga': 150000,
-      'jam': '06.00 - 21.00',
-      'image':
-          'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop',
-    },
-    {
-      'nama': 'Boomerang Gym Bojongsoang',
-      'alamat': 'Kawasan Ciganitri',
-      'harga': 120000,
-      'jam': '07.00 - 22.00',
-      'image':
-          'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?q=80&w=1470&auto=format&fit=crop',
-    },
-    {
-      'nama': 'Dayeuhkolot Muscle Studio',
-      'alamat': 'Jl. Raya Dayeuhkolot',
-      'harga': 100000,
-      'jam': '06.00 - 21.00',
-      'image':
-          'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1470&auto=format&fit=crop',
-    },
-    {
-      'nama': 'Metro Margahayu Fit',
-      'alamat': 'Metro Indah',
-      'harga': 250000,
-      'jam': '06.00 - 23.00',
-      'image':
-          'https://images.unsplash.com/photo-1558611848-73f7eb4001a1?q=80&w=1471&auto=format&fit=crop',
-    },
-    {
-      'nama': 'Soreang Gym Center',
-      'alamat': 'Dekat Pemda Soreang',
-      'harga': 175000,
-      'jam': '08.00 - 20.00',
-      'image':
-          'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1470&auto=format&fit=crop',
-    },
-  ];
 
   @override
   State<DataPage> createState() => _DataPageState();
 }
 
 class _DataPageState extends State<DataPage> {
-  final Color _bgColor = const Color(0xFF0F0F11);
-  final Color _textColor = Colors.white;
-  final Color _inputColor = const Color(0xFF1E1E22);
-
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
 
-  List<Map<String, dynamic>> _filteredGymList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredGymList = List.from(DataPage.gymList);
-  }
+  String _searchQuery = '';
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
-  void _filterData(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredGymList = List.from(DataPage.gymList);
-      } else {
-        _filteredGymList = DataPage.gymList.where((gym) {
-          final String namaGym = gym['nama'].toString().toLowerCase();
-          final String alamat = gym['alamat'].toString().toLowerCase();
-          final String keyword = query.toLowerCase();
-
-          return namaGym.contains(keyword) || alamat.contains(keyword);
-        }).toList();
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = query.toLowerCase();
+        });
       }
     });
   }
 
-  void _refreshList() {
+  void _clearSearch() {
+    _searchController.clear();
+    _searchFocus.unfocus();
     setState(() {
-      _filterData(_searchController.text);
+      _searchQuery = '';
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bgColor,
-      appBar: AppBar(
-        backgroundColor: _bgColor,
-        elevation: 0,
-        iconTheme: IconThemeData(color: _textColor),
-        centerTitle: true,
-        title: Text(
-          'Daftar GYM',
-          style: TextStyle(color: _textColor, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _filterData,
-              style: TextStyle(color: _textColor),
-              decoration: InputDecoration(
-                hintText: 'Cari nama atau lokasi gym...',
-                hintStyle: TextStyle(color: Colors.grey.shade600),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: Colors.grey.shade500),
-                        onPressed: () {
-                          _searchController.clear();
-                          _filterData('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: _inputColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
-            ),
-          ),
+      backgroundColor: AppTheme.bgDark,
+      body: StreamBuilder<List<GymModel>>(
+        stream: GymController().getGymsStream(),
+        builder: (context, snapshot) {
+          final isLoading = snapshot.connectionState == ConnectionState.waiting;
+          final allGyms = snapshot.data ?? [];
 
-          Expanded(
-            child: _filteredGymList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          size: 80,
-                          color: Colors.grey.shade700,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Pencarian tidak ditemukan',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(
-                      top: 10,
-                      bottom: 80,
-                      left: 20,
-                      right: 20,
-                    ),
-                    itemCount: _filteredGymList.length,
-                    itemBuilder: (context, index) {
-                      final data = _filteredGymList[index];
+          final filteredGyms = _searchQuery.isEmpty
+              ? allGyms
+              : allGyms.where((gym) {
+                  return gym.nama.toLowerCase().contains(_searchQuery) ||
+                      gym.alamat.toLowerCase().contains(_searchQuery);
+                }).toList();
 
-                      final int originalIndex = DataPage.gymList.indexOf(data);
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              _buildSliverHeader(filteredGyms.length),
 
-                      return ItemGym(
-                        index: originalIndex,
-                        namaGym: data['nama'],
-                        alamat: data['alamat'],
-                        hargaMember: data['harga'],
-                        jamOperasional: data['jam'],
-                        imageUrl:
-                            data['image'] ??
-                            'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop',
-                        onUpdate: _refreshList,
-                      );
-                    },
+              if (isLoading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.blueAccent),
                   ),
-          ),
-        ],
+                )
+              else if (snapshot.hasError)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildErrorState(snapshot.error.toString()),
+                )
+              else if (filteredGyms.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _buildEmptyState(),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: ItemGym(gym: filteredGyms[index]),
+                      ),
+                      childCount: filteredGyms.length,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
         onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const DataForm()),
-          ).then((_) => _refreshList());
+          );
         },
-        icon: const Icon(Icons.add),
+        backgroundColor: Colors.blueAccent,
+        elevation: 4,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: const Text(
           'Tambah GYM',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
+    );
+  }
+
+  Widget _buildSliverHeader(int count) {
+    return SliverToBoxAdapter(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 56, 20, 24),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppTheme.cardDark, AppTheme.bgDark],
+          ),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(32),
+            bottomRight: Radius.circular(32),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Explore GYM',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 28,
+                          color: AppTheme.textWhite,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Temukan tempat gym terbaik di sekitarmu',
+                        style: TextStyle(fontSize: 13, color: AppTheme.textSub),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.blueAccent.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.fitness_center_rounded,
+                    color: Colors.blueAccent,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                color: _searchFocus.hasFocus
+                    ? const Color(0xFF1E1E2A)
+                    : AppTheme.bgDark,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: _searchFocus.hasFocus
+                      ? Colors.blueAccent.withOpacity(0.5)
+                      : Colors.white10,
+                ),
+                boxShadow: _searchFocus.hasFocus
+                    ? [
+                        BoxShadow(
+                          color: Colors.blueAccent.withOpacity(0.1),
+                          blurRadius: 12,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : [],
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                onChanged: _onSearchChanged,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'Cari nama atau lokasi gym...',
+                  hintStyle: TextStyle(color: AppTheme.textSub, fontSize: 14),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Colors.blueAccent,
+                    size: 22,
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.cancel_rounded,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
+                          onPressed: _clearSearch,
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                _buildStatChip(
+                  icon: Icons.place_rounded,
+                  label: '$count Lokasi',
+                  color: Colors.redAccent,
+                ),
+                const SizedBox(width: 10),
+                _buildStatChip(
+                  icon: Icons.verified_rounded,
+                  label: 'Terverifikasi',
+                  color: Colors.greenAccent,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.error_outline_rounded,
+          color: Colors.redAccent,
+          size: 56,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Terjadi kesalahan',
+          style: TextStyle(
+            color: AppTheme.textWhite,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 100,
+          height: 100,
+          decoration: const BoxDecoration(
+            color: Color(0xFF16161F),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.search_off_rounded,
+            color: Color(0xFF888899),
+            size: 42,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _searchQuery.isEmpty
+              ? 'Belum ada data GYM'
+              : 'Pencarian tidak ditemukan',
+          style: const TextStyle(
+            color: AppTheme.textWhite,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _searchQuery.isEmpty
+              ? 'Silakan tambah data gym baru\nmenggunakan tombol di bawah'
+              : 'Kata kunci "${_searchController.text}" tidak cocok\ndengan nama atau alamat manapun.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppTheme.textSub, fontSize: 14, height: 1.5),
+        ),
+      ],
     );
   }
 }
 
 class ItemGym extends StatelessWidget {
-  final int index;
-  final String namaGym;
-  final String alamat;
-  final int hargaMember;
-  final String jamOperasional;
-  final String imageUrl;
-  final VoidCallback onUpdate;
+  final GymModel gym;
 
-  const ItemGym({
-    super.key,
-    required this.index,
-    required this.namaGym,
-    required this.alamat,
-    required this.hargaMember,
-    required this.jamOperasional,
-    required this.imageUrl,
-    required this.onUpdate,
-  });
-
-  Widget _buildErrorImage() {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      color: Colors.grey.shade800,
-      child: const Icon(Icons.broken_image, color: Colors.white54, size: 50),
-    );
-  }
+  const ItemGym({super.key, required this.gym});
 
   @override
   Widget build(BuildContext context) {
-    final Color cardColor = const Color(0xFF1E1E22);
-    final Color subTextColor = Colors.grey.shade400;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DataDetail(
-                  index: index,
-                  namaGym: namaGym,
-                  alamat: alamat,
-                  hargaMember: hargaMember,
-                  jamOperasional: jamOperasional,
-                  imageUrl: imageUrl,
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => DataDetail(gym: gym)),
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
-            ).then((_) => onUpdate());
-          },
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Stack(
                 children: [
-                  (kIsWeb || imageUrl.startsWith('http'))
-                      ? Image.network(
-                          imageUrl,
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildErrorImage(),
-                        )
-                      : Image.file(
-                          File(imageUrl),
-                          height: 180,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildErrorImage(),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    child: (gym.imageUrl != null && gym.imageUrl!.isNotEmpty)
+                        ? Image.network(
+                            gym.imageUrl!,
+                            width: double.infinity,
+                            height: 160,
+                            fit: BoxFit.cover,
+                            cacheWidth: 600,
+                            errorBuilder: (ctx, err, stack) =>
+                                _buildPlaceholder(),
+                          )
+                        : _buildPlaceholder(),
+                  ),
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.65),
+                            ],
+                          ),
                         ),
+                      ),
+                    ),
+                  ),
                   Positioned(
-                    top: 16,
-                    right: 16,
+                    top: 14,
+                    right: 14,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 14,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withOpacity(0.9),
+                        color: Colors.black.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'Rp ${hargaMember / 1000}K / Bln',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                        border: Border.all(
+                          color: Colors.greenAccent.withOpacity(0.5),
                         ),
                       ),
+                      child: Text(
+                        'Rp ${gym.harga ~/ 1000}K',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Colors.greenAccent,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 16,
+                    bottom: 14,
+                    right: 16,
+                    child: Text(
+                      gym.nama,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      namaGym,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        Icon(
-                          Icons.location_on,
+                        const Icon(
+                          Icons.location_on_rounded,
                           size: 16,
-                          color: Colors.redAccent.shade100,
+                          color: Colors.redAccent,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            alamat,
-                            style: TextStyle(color: subTextColor, fontSize: 13),
+                            gym.alamat,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textSub,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 14),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(
-                          Icons.access_time_filled,
-                          size: 16,
-                          color: Colors.orange.shade300,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.bgDark,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: Colors.orangeAccent,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                gym.jam,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orangeAccent,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          jamOperasional,
-                          style: TextStyle(color: subTextColor, fontSize: 13),
+                        const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Lihat detail',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.blueAccent,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 12,
+                              color: Colors.blueAccent,
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -382,6 +560,19 @@ class ItemGym extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      color: const Color(0xFF16161F),
+      child: const Icon(
+        Icons.fitness_center_rounded,
+        color: Colors.white24,
+        size: 42,
       ),
     );
   }

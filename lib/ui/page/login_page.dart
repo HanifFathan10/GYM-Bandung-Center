@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dashboard_page.dart';
 import 'registrasi_page.dart';
+import 'dashboard_page.dart';
 import '../../widget/warning_dialog.dart';
 import '../../helpers/theme_config.dart';
 import '../../widget/text_field.dart';
@@ -31,14 +31,14 @@ class _LoginPageState extends State<LoginPage> {
         _passwordController.text,
       );
 
-      await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
       setState(() => _isLoading = false);
 
       if (result['status'] == true) {
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const DashboardPage()),
+          (route) => false,
         );
       } else {
         showDialog(
@@ -93,12 +93,14 @@ class _LoginPageState extends State<LoginPage> {
                             size: 20,
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Email tidak boleh kosong';
+                            }
                             if (!RegExp(
                               r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value))
+                            ).hasMatch(value)) {
                               return 'Format email tidak valid';
+                            }
                             return null;
                           },
                         ),

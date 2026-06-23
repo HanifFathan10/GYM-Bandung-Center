@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "270866059115",
+    "project_id": "gymbandungcenter",
+    "storage_bucket": "gymbandungcenter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270866059115:android:1107c920dee00fd247c62e",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7zBYaqGg42m6Rtgr56FYHvdmJYcN6RA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

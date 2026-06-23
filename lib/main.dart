@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
 import 'ui/page/login_page.dart';
 import 'ui/page/dashboard_page.dart';
 import 'helpers/theme_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
@@ -22,40 +27,29 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class SessionCheck extends StatefulWidget {
+class SessionCheck extends StatelessWidget {
   const SessionCheck({super.key});
 
   @override
-  State<SessionCheck> createState() => _SessionCheckState();
-}
-
-class _SessionCheckState extends State<SessionCheck> {
-  bool _isLoggedIn = false;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkSession();
-  }
-
-  Future<void> _checkSession() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-      _isLoading = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppTheme.bgDark,
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Tampilkan loading saat mengecek token
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: AppTheme.bgDark,
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    return _isLoggedIn ? const DashboardPage() : const LoginPage();
+        // Jika user memiliki token aktif, masuk Dashboard. Jika tidak, Login.
+        if (snapshot.hasData) {
+          return const DashboardPage();
+        } else {
+          return const LoginPage();
+        }
+      },
+    );
   }
 }

@@ -1,3 +1,4 @@
 {
-  "cmake.sourceDirectory": "C:/Mobile Apps Project/GYM-Bandung-Center/windows"
+  "cmake.sourceDirectory": "C:/Mobile Apps Project/GYM-Bandung-Center/windows",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

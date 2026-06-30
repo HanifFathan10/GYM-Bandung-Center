@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../model/data_model.dart';
 import '../controllers/gym_controller.dart';
 import 'data_form.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class DataDetail extends StatefulWidget {
   final GymModel gym;
@@ -20,7 +21,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // ─── Design tokens ───────────────────────────────────────────────
   static const _bg = Color(0xFF0D0D12);
   static const _surface = Color(0xFF16161F);
   static const _surfaceHigh = Color(0xFF1E1E2A);
@@ -30,7 +30,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
   static const _textPrimary = Color(0xFFF0F0F5);
   static const _textSub = Color(0xFF888899);
   static const _divider = Color(0xFF252532);
-  // ─────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -194,7 +193,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // ── Hero image ──────────────────────────────────────────────
           SliverAppBar(
             expandedHeight: 320,
             pinned: true,
@@ -206,7 +204,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Image or placeholder
                   hasImage
                       ? Image.network(
                           widget.gym.imageUrl!,
@@ -215,7 +212,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
                         )
                       : _imagePlaceholder(),
 
-                  // Bottom gradient overlay
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -227,7 +223,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  // Accent badge — top right
                   Positioned(
                     top: 56,
                     right: 16,
@@ -259,7 +254,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
             ],
           ),
 
-          // ── Body ────────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -270,7 +264,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Gym name + price badge ─────────────────────
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -293,7 +286,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
 
                       const SizedBox(height: 6),
 
-                      // Tagline / alamat singkat
                       Row(
                         children: [
                           const Icon(
@@ -318,12 +310,11 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
 
                       const SizedBox(height: 28),
 
-                      // ── Quick action pills ─────────────────────────
                       Row(
                         children: [
                           Expanded(
                             child: _QuickAction(
-                              icon: Icons.map_rounded,
+                              icon: FontAwesomeIcons.mapLocationDot,
                               label: 'Buka Maps',
                               color: _accent,
                               onTap: () => _openGoogleMaps(widget.gym.alamat),
@@ -332,7 +323,7 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _QuickAction(
-                              icon: Icons.chat_rounded,
+                              icon: FontAwesomeIcons.whatsapp,
                               label: 'WhatsApp',
                               color: _teal,
                               onTap: () => _openWhatsApp(widget.gym.kontak),
@@ -343,7 +334,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
 
                       const SizedBox(height: 28),
 
-                      // ── Detail card ───────────────────────────────
                       _SectionLabel(label: 'Informasi Detail'),
                       const SizedBox(height: 12),
 
@@ -411,8 +401,6 @@ class _DataDetailState extends State<DataDetail> with TickerProviderStateMixin {
     ),
   );
 }
-
-// ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
 class _AppBarAction extends StatelessWidget {
   final IconData icon;

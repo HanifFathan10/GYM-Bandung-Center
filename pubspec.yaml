@@ -42,6 +42,7 @@ dependencies:
   http: ^1.2.0
   flutter_application_1: ^0.0.2
   url_launcher: ^6.3.2
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:

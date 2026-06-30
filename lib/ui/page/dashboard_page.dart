@@ -202,7 +202,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Kelola Data GYM',
+                                  'Semua GYM',
                                   style: TextStyle(
                                     color: AppTheme.textWhite,
                                     fontSize: 15,

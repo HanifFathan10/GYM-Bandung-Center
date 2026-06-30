@@ -19,7 +19,8 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
   final _namaController = TextEditingController();
   final _alamatController = TextEditingController();
   final _hargaController = TextEditingController();
-  final _jamController = TextEditingController();
+  final _jamBukaController = TextEditingController();
+  final _jamTutupController = TextEditingController();
   final _fasilitasController = TextEditingController();
   final _kontakController = TextEditingController();
 
@@ -53,9 +54,17 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
       _namaController.text = widget.gymData!.nama;
       _alamatController.text = widget.gymData!.alamat;
       _hargaController.text = widget.gymData!.harga.toString();
-      _jamController.text = widget.gymData!.jam;
       _fasilitasController.text = widget.gymData!.fasilitas;
       _kontakController.text = widget.gymData!.kontak;
+
+      final jamUtuh = widget.gymData!.jam;
+      if (jamUtuh.contains(' - ')) {
+        final splitJam = jamUtuh.split(' - ');
+        _jamBukaController.text = splitJam[0];
+        _jamTutupController.text = splitJam[1];
+      } else {
+        _jamBukaController.text = jamUtuh;
+      }
     }
   }
 
@@ -65,7 +74,8 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
     _namaController.dispose();
     _alamatController.dispose();
     _hargaController.dispose();
-    _jamController.dispose();
+    _jamBukaController.dispose();
+    _jamTutupController.dispose();
     _fasilitasController.dispose();
     _kontakController.dispose();
     super.dispose();
@@ -98,13 +108,15 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
 
     final cleanHarga = _hargaController.text.replaceAll(RegExp(r'[^0-9]'), '');
     final hargaParsed = int.tryParse(cleanHarga) ?? 0;
+    final jamGabungan =
+        '${_jamBukaController.text} - ${_jamTutupController.text}';
 
     final gym = GymModel(
       id: widget.gymData?.id,
       nama: _namaController.text,
       alamat: _alamatController.text,
       harga: hargaParsed,
-      jam: _jamController.text,
+      jam: jamGabungan,
       fasilitas: _fasilitasController.text,
       kontak: _kontakController.text,
       imageUrl: widget.gymData?.imageUrl,
@@ -140,6 +152,34 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _selectTime(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFFF5C3A),
+              surface: Color(0xFF1E1E2A),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        controller.text =
+            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      });
     }
   }
 
@@ -234,13 +274,47 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
 
                       _FormCard(
                         children: [
-                          _FormField(
-                            label: 'Jam Operasional',
-                            hint: 'Contoh: 06.00 – 22.00',
-                            controller: _jamController,
-                            icon: Icons.access_time_filled_rounded,
-                            iconColor: _gold,
-                            textInputAction: TextInputAction.next,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _FormField(
+                                  label: 'Jam Buka',
+                                  hint: '06:00',
+                                  controller: _jamBukaController,
+                                  icon: Icons.access_time_rounded,
+                                  iconColor: _gold,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectTime(context, _jamBukaController),
+                                  isLast: true,
+                                ),
+                              ),
+                              // Garis pemisah vertikal di tengah
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: const Color(0xFF252532),
+                              ),
+                              Expanded(
+                                child: _FormField(
+                                  label: 'Jam Tutup',
+                                  hint: '22:00',
+                                  controller: _jamTutupController,
+                                  icon: Icons.access_time_filled_rounded,
+                                  iconColor: _gold,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectTime(context, _jamTutupController),
+                                  isLast: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(
+                            height: 1,
+                            color: Color(0xFF252532),
+                            indent: 16,
+                            endIndent: 16,
                           ),
                           _FormField(
                             label: 'Fasilitas',
@@ -301,8 +375,6 @@ class _DataFormState extends State<DataForm> with TickerProviderStateMixin {
     );
   }
 }
-
-// ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
 class _ImagePicker extends StatelessWidget {
   final Uint8List? imageBytes;
@@ -505,6 +577,9 @@ class _FormField extends StatefulWidget {
   final String? prefix;
   final Widget? suffixIcon;
 
+  final bool readOnly;
+  final VoidCallback? onTap;
+
   const _FormField({
     required this.label,
     required this.controller,
@@ -517,6 +592,8 @@ class _FormField extends StatefulWidget {
     this.isLast = false,
     this.prefix,
     this.suffixIcon,
+    this.readOnly = false,
+    this.onTap,
   });
 
   @override
@@ -537,6 +614,8 @@ class _FormFieldState extends State<_FormField> {
             keyboardType: widget.keyboardType,
             textInputAction: widget.textInputAction,
             maxLines: widget.maxLines,
+            readOnly: widget.readOnly,
+            onTap: widget.onTap,
             style: const TextStyle(color: Color(0xFFF0F0F5), fontSize: 15),
             validator: (val) =>
                 val == null || val.trim().isEmpty ? 'Tidak boleh kosong' : null,
